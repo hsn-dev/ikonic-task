@@ -7,6 +7,7 @@ use App\Models\Affiliate;
 use App\Models\Merchant;
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Support\Arr;
 
 class MerchantService
 {
@@ -21,6 +22,12 @@ class MerchantService
     public function register(array $data): Merchant
     {
         // TODO: Complete this method
+        $data['type'] = User::TYPE_MERCHANT;
+        $data['password'] = $data['api_key'];
+        $data['display_name'] = $data['name'];
+
+        $user = User::create($data);
+        return $user->merchant()->create($data);
     }
 
     /**
@@ -29,9 +36,11 @@ class MerchantService
      * @param array{domain: string, name: string, email: string, api_key: string} $data
      * @return void
      */
-    public function updateMerchant(User $user, array $data)
+    public function updateMerchant(User $user, array $data): void
     {
         // TODO: Complete this method
+        $data['display_name'] = $data['name'];
+        $user->merchant->update($data);
     }
 
     /**
@@ -44,6 +53,7 @@ class MerchantService
     public function findMerchantByEmail(string $email): ?Merchant
     {
         // TODO: Complete this method
+        return User::where("email", $email)->first()?->merchant;
     }
 
     /**
@@ -56,5 +66,9 @@ class MerchantService
     public function payout(Affiliate $affiliate)
     {
         // TODO: Complete this method
+        $unpaidOrders = $affiliate->orders()->where('payout_status', Order::STATUS_UNPAID)->get();
+        foreach ($unpaidOrders as $order) {
+            dispatch(new PayoutOrderJob($order));
+        }
     }
 }
